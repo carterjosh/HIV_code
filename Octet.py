@@ -10,35 +10,70 @@ class Octet():
     '''
     A convenience class for reading in and performing various plots and fits on Octet BLI data.
     '''
-
-    def read_data(self, path, var_list):
+    
+        def save_xls_to_tsv(self, filepath):
         '''
-        Reads in data from directory given by path, changes column names to match those provided in var_list.
+        Creates a tsv file from the xls file formatted from the Octet.
+        
+        Arguments:
+            filepath takes in the filepath of the file of 'xls'
+            
+        '''
+        print('Saving {} as {}!'.format(filepath, filepath.replace('xls', 'tsv')))
+        try:
+            with open(filepath) as f:
+                lines = f.readlines()
+
+            f = open(filepath.replace('xls','tsv'), 'w')
+            for line in lines[4:]:
+                f.write(line)
+            f.close()
+        except:
+            print('File {} is not a .xls!'.format(filepath))
+
+
+    def read_data(self, path, var_list, filetype = '.xls'):
+        '''
+        Reads in data from directory given by path, creates tsv file, changes column names to match those provided in var_list.
         
         Arguments:
             path filepath to directory
-            var_list list of column names
+            var_list list of column names, assumes Time is in the leftmost column
+            filetype string that defines the file type, default is .xls
             
         Returns:
             Merged dataframe of Octet data with time set to 0 at beginning of association
         '''
         print('Reading in data')
-        files = sorted([file for file in os.listdir(path) if file.endswith(".tsv")])
+        
+        files = sorted([file for file in os.listdir(path) if file.endswith(filetype)])
+
         
         out = None
         
         for file in files:
+            
+            if path[-1] != '/':
+                path = path + '/'
+            filepath = ''.join([path,file])
             try:
                 if isinstance(out, pd.DataFrame):
-                    tmp = pd.read_csv(''.join([path,file]), sep='\t')
-                    out[file[0:2]] = tmp['Data1']
+                    if filetype == '.xls':
+                        self.save_xls_to_tsv(filepath)
+                        filepath = filepath.replace('xls', 'tsv')
+                    tmp = pd.read_csv(filepath, sep='\t')
+                    out[file.strip(filetype)] = tmp['Data1']
                 else:
-                    out = pd.read_csv(''.join([path,file]), sep='\t')
+                    if filetype == '.xls':
+                        self.save_xls_to_tsv(filepath)
+                        filepath = filepath.replace('xls', 'tsv')
+                    out = pd.read_csv(filepath, sep='\t')
                     out = out[['Time1', 'Data1']]
-
+                    out = out.rename(columns={"Time1": "Time", "Data1": file.strip(filetype)})
+                    print(out)
             except:
-                print(' '.join([file, 'not found!']))
-                
+                print(' '.join([filepath, 'not found!']))
+
         assert len(out.columns)==len(var_list), 'Variable list does not match number of columns!'
         out.columns = var_list
         
